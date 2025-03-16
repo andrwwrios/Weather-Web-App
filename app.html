@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weather App</title>
+  <style>
+    /* Basic styling */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    h1, h2, h3 {
+      margin: 10px 0;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+    }
+    .instructions {
+      font-size: 14px;
+      color: #555;
+      margin: 5px;
+    }
+    .weather-info, .forecast {
+      margin-top: 20px;
+    }
+    .forecast {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+    .forecast-day {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 5px;
+      width: calc(20% - 10px);
+      text-align: center;
+      background: #fafafa;
+    }
+    .forecast-day img {
+      width: 60px;
+      height: 60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Weather App</h1>
+    <div>
+      <input type="text" id="location-input" placeholder="Enter location">
+      <div class="instructions">((City, State) or zipcode)</div>
+      <button id="search-btn">Get Weather</button>
+      <button id="geo-btn">Use My Location</button>
+    </div>
+    <div class="weather-info" id="weather-info">
+      <!-- Current weather details will appear here -->
+    </div>
+    <div class="forecast" id="forecast">
+      <!-- 5-day forecast details will appear here -->
+    </div>
+  </div>
+
+  <script>
+    // Replace with your actual OpenWeatherMap API key
+    const apiKey = '6ad13d595b927d78be0618ff555697c2';
+
+    // Event listener for searching by text input
+    document.getElementById('search-btn').addEventListener('click', () => {
+      const location = document.getElementById('location-input').value;
+      if (location) {
+        getWeatherByLocation(location);
+      } else {
+        alert('Please enter a location.');
+      }
+    });
+
+    // Event listener for geolocation button
+    document.getElementById('geo-btn').addEventListener('click', () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            getWeatherByCoords(lat, lon);
+          },
+          () => {
+            alert('Geolocation permission denied.');
+          }
+        );
+      } else {
+        alert('Geolocation is not supported by your browser.');
+      }
+    });
+
+    // Get coordinates from a location string.
+    // If a 5-digit ZIP code is detected, use the ZIP endpoint.
+    // Otherwise, require that the user inputs "City, State".
+    function getWeatherByLocation(location) {
+      const trimmed = location.trim();
+      if (/^\d{5}$/.test(trimmed)) {
+        // Use the ZIP code endpoint (assuming U.S. ZIP)
+        fetch(`https://api.openweathermap.org/geo/1.0/zip?zip=${trimmed},US&appid=${apiKey}`)
+          .then(response => {
+            if (!response.ok) throw new Error("Location not found.");
+            return response.json();
+          })
+          .then(data => {
+            const { lat, lon, name } = data;
+            getWeatherByCoords(lat, lon, `${name}, US`);
+          })
+          .catch(err => {
+            console.error(err);
+            alert('Location not found.');
+          });
+      } else {
+        // For non-ZIP input, enforce that city and state are provided.
+        if (!trimmed.includes(',')) {
+          alert("Please enter the city and state (e.g., 'Des Moines, WA').");
+          return;
+        }
+        // Use the direct endpoint for city names, landmarks, etc.
+        fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(location)}&limit=1&appid=${apiKey}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data && data.length > 0) {
+              const { lat, lon, name, country, state } = data[0];
+              // If state exists, include it in the display name.
+              const locationDisplay = state ? `${name}, ${state}, ${country}` : `${name}, ${country}`;
+              getWeatherByCoords(lat, lon, locationDisplay);
+            } else {
+              alert('Location not found.');
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            alert('Error fetching location data.');
+          });
+      }
+    }
+
+    // Fetch weather data using coordinates (imperial units for Fahrenheit)
+    function getWeatherByCoords(lat, lon, locationName = '') {
+      // Fetch current weather
+      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&appid=${apiKey}`)
+        .then(response => response.json())
+        .then(currentData => {
+          displayCurrentWeather(currentData, locationName);
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Error fetching current weather.');
+        });
+
+      // Fetch 5-day forecast
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=imperial&appid=${apiKey}`)
+        .then(response => response.json())
+        .then(forecastData => {
+          displayForecast(forecastData);
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Error fetching forecast.');
+        });
+    }
+
+    // Display current weather info
+    function displayCurrentWeather(data, locationName = '') {
+      let locationDisplay = locationName;
+      if (!locationDisplay) {
+        locationDisplay = `${data.name}, ${data.sys.country}`;
+      }
+      const weatherInfoDiv = document.getElementById('weather-info');
+      weatherInfoDiv.innerHTML = `
+        <h2>Current Weather for ${locationDisplay}</h2>
+        <p>
+          <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" 
+               alt="${data.weather[0].description}">
+        </p>
+        <p><strong>Temperature:</strong> ${data.main.temp} °F</p>
+        <p><strong>Humidity:</strong> ${data.main.humidity} %</p>
+        <p><strong>Wind Speed:</strong> ${data.wind.speed} mph</p>
+        <p><strong>Description:</strong> ${data.weather[0].description}</p>
+      `;
+    }
+
+    // Display 5-day forecast information
+    function displayForecast(data) {
+      const forecastDiv = document.getElementById('forecast');
+      // Clear previous forecast and add a header
+      forecastDiv.innerHTML = '<h2>5-Day Forecast</h2>';
+      
+      // The API returns data every 3 hours.
+      // We'll choose one forecast per day (ideally around 12:00 noon).
+      const dailyData = {};
+      data.list.forEach(item => {
+        const date = item.dt_txt.split(' ')[0];
+        const hour = item.dt_txt.split(' ')[1].split(':')[0];
+        if (hour === '12' && !dailyData[date]) {
+          dailyData[date] = item;
+        }
+      });
+      // For any day missing a 12:00 forecast, pick the first available data
+      for (let item of data.list) {
+        const date = item.dt_txt.split(' ')[0];
+        if (!dailyData[date]) {
+          dailyData[date] = item;
+        }
+      }
+      // Create forecast cards
+      for (let date in dailyData) {
+        const item = dailyData[date];
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'forecast-day';
+        dayDiv.innerHTML = `
+          <h3>${date}</h3>
+          <p>
+            <img src="https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png" 
+                 alt="${item.weather[0].description}">
+          </p>
+          <p><strong>Temp:</strong> ${item.main.temp} °F</p>
+          <p><strong>Description:</strong> ${item.weather[0].description}</p>
+        `;
+        forecastDiv.appendChild(dayDiv);
+      }
+    }
+  </script>
+</body>
+</html>
