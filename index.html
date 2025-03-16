@@ -59,7 +59,7 @@
     <h1>Weather App</h1>
     <div>
       <input type="text" id="location-input" placeholder="Enter location">
-      <div class="instructions">((City, State) or zipcode)</div>
+      <div class="instructions">(City, State or zipcode)</div>
       <button id="search-btn">Get Weather</button>
       <button id="geo-btn">Use My Location</button>
     </div>
@@ -74,6 +74,23 @@
   <script>
     // Replace with your actual OpenWeatherMap API key
     const apiKey = '6ad13d595b927d78be0618ff555697c2';
+
+    // Mapping of US state abbreviations to full state names
+    const statesMap = {
+      "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+      "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
+      "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
+      "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
+      "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+      "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+      "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+      "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
+      "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
+      "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+      "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
+      "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+      "WI": "Wisconsin", "WY": "Wyoming"
+    };
 
     // Event listener for searching by text input
     document.getElementById('search-btn').addEventListener('click', () => {
@@ -105,7 +122,7 @@
 
     // Get coordinates from a location string.
     // If a 5-digit ZIP code is detected, use the ZIP endpoint.
-    // Otherwise, require that the user inputs "City, State".
+    // Otherwise, require that the user inputs "City, State" and expand state abbreviations.
     function getWeatherByLocation(location) {
       const trimmed = location.trim();
       if (/^\d{5}$/.test(trimmed)) {
@@ -129,13 +146,20 @@
           alert("Please enter the city and state (e.g., 'Des Moines, WA').");
           return;
         }
-        // Use the direct endpoint for city names, landmarks, etc.
-        fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(location)}&limit=1&appid=${apiKey}`)
+        const parts = trimmed.split(',');
+        let city = parts[0].trim();
+        let state = parts[1].trim();
+        // If the state is abbreviated (2 letters), convert it to the full state name.
+        if (state.length === 2) {
+          state = statesMap[state.toUpperCase()] || state;
+        }
+        // Build a query string that includes the country code.
+        const query = `${city}, ${state}, US`;
+        fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${apiKey}`)
           .then(response => response.json())
           .then(data => {
             if (data && data.length > 0) {
               const { lat, lon, name, country, state } = data[0];
-              // If state exists, include it in the display name.
               const locationDisplay = state ? `${name}, ${state}, ${country}` : `${name}, ${country}`;
               getWeatherByCoords(lat, lon, locationDisplay);
             } else {
