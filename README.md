@@ -14,3 +14,17 @@ A simple weather application that allows users to search for current weather and
 
 - **Weather Details:**  
   Displays current weather details and a 5-day forecast.
+
+## Getting Started
+
+### Prerequisites
+
+- A modern web browser (Chrome, Firefox, Safari, etc.)
+- An [OpenWeatherMap API key](https://openweathermap.org/api). Sign up for a free or student API key if you don’t have one already.
+
+### Installation
+
+1. **Clone the Repository:**
+
+   ```bash
+   git clone https://github.com/andrwwrios/weather-app.git
