@@ -134,7 +134,7 @@
 
     // Get coordinates from a location string.
     // If a 5-digit ZIP code is detected, use the ZIP endpoint.
-    // Otherwise, require that the user inputs "City, State" and expand state abbreviations.
+    // Otherwise, require that the user inputs "City, State" or "City, Country" and build the query accordingly.
     function getWeatherByLocation(location) {
       const trimmed = location.trim();
       if (/^\d{5}$/.test(trimmed)) {
@@ -153,20 +153,25 @@
             alert('Location not found.');
           });
       } else {
-        // For non-ZIP input, enforce that city and state are provided.
+        // For non-ZIP input, ensure there's a comma.
         if (!trimmed.includes(',')) {
-          alert("Please enter the city and state (e.g., 'Des Moines, WA').");
+          alert("Please enter the city and state or country (e.g., 'Des Moines, WA' or 'London, United Kingdom').");
           return;
         }
         const parts = trimmed.split(',');
         let city = parts[0].trim();
-        let state = parts[1].trim();
-        // If the state is abbreviated (2 letters), convert it to the full state name.
-        if (state.length === 2) {
-          state = statesMap[state.toUpperCase()] || state;
+        let region = parts[1].trim();
+        let query;
+        // If region looks like a US state (2 letters or matches a full US state name), assume US.
+        if (region.length === 2 || Object.values(statesMap).includes(region)) {
+          if (region.length === 2) {
+            region = statesMap[region.toUpperCase()] || region;
+          }
+          query = `${city}, ${region}, US`;
+        } else {
+          // Otherwise, assume region is a country name.
+          query = `${city}, ${region}`;
         }
-        // Build a query string that includes the country code.
-        const query = `${city}, ${state}, US`;
         fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${apiKey}`)
           .then(response => response.json())
           .then(data => {
